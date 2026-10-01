@@ -4,7 +4,7 @@
 #     ./build-musl.sh /path/to/musl-1.2.5
 #
 # Needs the x86_64-quark toolchain on PATH (build.sh) and the translation
-# layer built (`make -C ../../quarkutils/linux-abi`).
+# layer built (`make -C ../quarkutils/linux-abi`).
 #
 # musl is written against Linux — not against "a kernel", but against Linux's
 # numbers, argument order, error convention and idea of what a process is.

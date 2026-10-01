@@ -21,7 +21,7 @@ PREFIX=${PREFIX:-$HOME/opt/cross/x86_64-quark/musl}
 # The userland: quark-rt, the C library and the Linux system-call layer. A
 # sibling of this repository by default, and made absolute here because a
 # specs file is read from wherever the compiler happens to be run.
-QUARKUTILS_DIR=${QUARKUTILS_DIR:-$HERE/../../quarkutils}
+QUARKUTILS_DIR=${QUARKUTILS_DIR:-$HERE/../quarkutils}
 if [ ! -d "$QUARKUTILS_DIR/linux-abi" ] || [ ! -d "$QUARKUTILS_DIR/libc/include" ]; then
     echo "no userland at $QUARKUTILS_DIR (set QUARKUTILS_DIR)" >&2
     exit 1
