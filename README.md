@@ -86,6 +86,14 @@ Small and in the usual places, the same shape as any other OS target:
   and it is short: the default code model, red zone and PIC settings;
   `crt0.o`; `-lc`; the link script by absolute path through the sysroot; and
   `__quark__`.
+- **`gcc/config/quark.opt`** (`patches/gcc-config-quark.opt`, and the
+  `.urls` file gcc wants beside every option file) — the options the driver
+  takes that are a system's rather than the compiler's. There is one:
+  `-rdynamic`. It asks for symbols to go in a table a static program has not
+  got, so `LINK_SPEC` passes it to the linker and nothing comes of it — but
+  a driver whose target does not declare the word refuses it, and e2fsprogs
+  links with it without asking. A program built with it is byte for byte the
+  program built without.
 - **`--enable-initfini-array` is not optional.** Without it gcc puts every
   constructor in `.ctors`, which only `crtbegin.o` and `crtend.o` know how to
   run, and no constructor in any C program ran. musl runs `.init_array`, and

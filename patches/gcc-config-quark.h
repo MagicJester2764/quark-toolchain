@@ -47,10 +47,17 @@ along with GCC; see the file COPYING3.  If not see
    different layout can say so.
 
    Static and non-PIE: there is no dynamic loader.  No build ID, which has
-   nowhere to be read from here.  */
+   nowhere to be read from here.
+
+   -rdynamic is passed on, as it is on every ELF target.  It asks for symbols
+   to go in a table a static program has not got, so it changes nothing —
+   but a driver with no spec for an option refuses it, and a package that
+   links with it without asking (e2fsprogs does, for its backtraces) stopped
+   there.  */
 #undef  LINK_SPEC
 #define LINK_SPEC \
-  "%{!shared:-static} -no-pie -z noexecstack --build-id=none \\
+  "%{!shared:-static} -no-pie -z noexecstack --build-id=none \
+   %{rdynamic:-export-dynamic} \
    %{!T*:-T %R/usr/lib/quark.ld}"
 
 #undef  TARGET_OS_CPP_BUILTINS

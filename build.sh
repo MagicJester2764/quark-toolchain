@@ -31,6 +31,8 @@ echo "==> patching $BINUTILS_SRC"
 echo "==> patching $GCC_SRC"
 ( cd "$GCC_SRC" && patch -p1 -N -r - < "$HERE/patches/gcc-x86_64-quark.patch" || true )
 cp "$HERE/patches/gcc-config-quark.h" "$GCC_SRC/gcc/config/quark.h"
+cp "$HERE/patches/gcc-config-quark.opt" "$GCC_SRC/gcc/config/quark.opt"
+cp "$HERE/patches/gcc-config-quark.opt.urls" "$GCC_SRC/gcc/config/quark.opt.urls"
 
 echo "==> binutils"
 mkdir -p build-binutils-quark && cd build-binutils-quark
