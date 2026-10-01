@@ -111,14 +111,31 @@ say `fprintf(stderr, ...)` is not one anybody can port to.
 
 `build-musl.sh` builds musl against the same target.
 
-The patch is five files, which is the point — musl's system call interface
+The patch is seven files, which is the point — musl's system call interface
 is that narrow. `syscall_arch.h` calls a translation layer instead of issuing
-the `syscall` instruction, because Quark's numbers mean different things; two
-assembly files that issue `syscall` themselves are pointed at the same layer;
+the `syscall` instruction, because Quark's numbers mean different things;
 `crt_arch.h` builds the argc/argv/environment/auxv block musl expects to find
-on its stack out of the page Quark's spawner maps instead; and `clone`, the
-one place musl asks the kernel for something Quark has not the shape of,
-becomes a tail call into the layer.
+on its stack out of the page Quark's spawner maps instead; and the other five
+are the assembly files that issue `syscall` themselves, each pointed at the
+layer. Two of those do it as any call would. Three are places musl asks the
+kernel for something Quark has not the shape of, and become a tail call:
+`clone`, where Linux has the child return from the same call on a new stack;
+`vfork`, where it returns through a stack it has borrowed; and the last thing
+a detached thread does, which is unmap the stack it is standing on.
+
+Every file under an `x86_64` directory with that instruction in it has to be
+one of them. Two were found late — a first cut that patched five left `vfork`
+and a detached thread's exit making Linux's calls, by number, at a kernel
+that numbers them differently — and the way to find the next is to look, in
+the library that was built:
+
+```bash
+x86_64-quark-objdump -d ~/opt/cross/x86_64-quark/musl/lib/libc.a | grep -B30 -w syscall
+```
+
+One is left on purpose: `__restore_rt`, which is where Linux returns to
+after a signal handler. Nothing returns there on Quark, where a handler is
+called as a function.
 
 The layer itself is `quarkutils/linux-abi`. It is mostly an IPC client
 wearing Linux's numbers: on a microkernel, `write` to a descriptor is a

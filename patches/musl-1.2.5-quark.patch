@@ -205,3 +205,51 @@ diff -ru '--exclude=*.o' '--exclude=*.a' '--exclude=*.lo' '--exclude=config.mak'
  __cp_end:
  	ret
  __cp_cancel:
+diff -ru '--exclude=*.o' '--exclude=*.a' '--exclude=*.lo' '--exclude=config.mak' '--exclude=obj' '--exclude=lib' '--exclude=config.log' a/src/process/x86_64/vfork.s musl-1.2.5/src/process/x86_64/vfork.s
+--- a/src/process/x86_64/vfork.s
++++ b/src/process/x86_64/vfork.s
+@@ -1,10 +1,16 @@
++/* Linux's vfork is a system call made with the return address held in a
++ * register, because the child borrows the parent's stack and returns through
++ * it first. Quark makes a process one way, as a copy, so this is fork — and
++ * it goes through the translation layer like every other call, where the
++ * instruction that was here went straight to a kernel that numbers its calls
++ * differently.
++ */
+ .global vfork
+ .type vfork,@function
+ vfork:
+-	pop %rdx
+-	mov $58,%eax
+-	syscall
+-	push %rdx
++	sub $8,%rsp
++	call __quark_fork
++	add $8,%rsp
+ 	mov %rax,%rdi
+ 	.hidden __syscall_ret
+ 	jmp __syscall_ret
+diff -ru '--exclude=*.o' '--exclude=*.a' '--exclude=*.lo' '--exclude=config.mak' '--exclude=obj' '--exclude=lib' '--exclude=config.log' a/src/thread/x86_64/__unmapself.s musl-1.2.5/src/thread/x86_64/__unmapself.s
+--- a/src/thread/x86_64/__unmapself.s
++++ b/src/thread/x86_64/__unmapself.s
+@@ -1,10 +1,15 @@
+ /* Copyright 2011-2012 Nicholas J. Kain, licensed under standard MIT license */
++/* The last thing a detached thread does is unmap the stack it is standing on
++ * and exit: on Linux, two system calls with nothing touching the stack
++ * between them. Neither is a single instruction here — unmapping is the
++ * translation layer's bookkeeping as much as the kernel's — so the layer does
++ * both, on a stack it keeps for the purpose.
++ *
++ * A tail call and nothing else: the two arguments are where a C function of
++ * the same shape expects them.
++ */
+ .text
+ .global __unmapself
+ .type   __unmapself,@function
+ __unmapself:
+-	movl $11,%eax   /* SYS_munmap */
+-	syscall         /* munmap(arg2,arg3) */
+-	xor %rdi,%rdi   /* exit() args: always return success */
+-	movl $60,%eax   /* SYS_exit */
+-	syscall         /* exit(0) */
++	jmp __quark_unmapself
