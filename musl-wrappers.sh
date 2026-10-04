@@ -97,14 +97,18 @@ SPECS
 #
 # A shared object gets no crtbegin: C needs none, and a C++ library would
 # want one built for it.
+#
+# A program linked -pie is one the loaders may put anywhere, and they put it
+# somewhere at random: it starts from musl's position-independent Scrt1.o,
+# and has no text address of its own.
 cat > "$PREFIX/lib/musl-quark-dynamic.specs" <<SPECS
 # musl as a shared library for x86_64-quark: read after musl-quark.specs.
 
 *link:
-%{shared:-shared;:-dynamic-linker /usr/lib/ld-musl-x86_64.so.1 -Ttext-segment=0x8000000000} -z noexecstack --build-id=none %{rdynamic:-export-dynamic}
+%{shared:-shared;:-dynamic-linker /usr/lib/ld-musl-x86_64.so.1 %{!pie:-Ttext-segment=0x8000000000}} -z noexecstack --build-id=none %{rdynamic:-export-dynamic}
 
 *startfile:
-%{!shared:$PREFIX/lib/crt1.o $QUARKUTILS_DIR/linux-abi/src/manifest.o} $PREFIX/lib/crti.o
+%{!shared:%{pie:$PREFIX/lib/Scrt1.o;:$PREFIX/lib/crt1.o} $QUARKUTILS_DIR/linux-abi/src/manifest.o} $PREFIX/lib/crti.o
 
 *endfile:
 $PREFIX/lib/crtn.o
@@ -130,7 +134,9 @@ cat > "$BINDIR/x86_64-quark-musl-gcc" <<WRAP
 # told — made certain. In the small model position-independent code finds
 # what it needs from where it is, linked into a static program or a shared
 # one alike; and a shared library has to be built so. -fPIE, -fpie and -pie
-# are dropped: an executable here is not moved.
+# are kept for a program linked to libc.so (-dynamic), which the loaders put
+# where they choose; for a static one they are dropped, since it is linked
+# where it runs.
 #
 # -dynamic links a program to libc.so rather than libc.a, and -shared makes
 # a shared object: each reads musl-quark-dynamic.specs after the static
@@ -143,19 +149,27 @@ cat > "$BINDIR/x86_64-quark-musl-gcc" <<WRAP
 # -DFOO="a b" loses its quoting the moment eval re-parses it.
 dynamic=
 pic=
+pie=
+piecode=
 n=\$#
 while [ "\$n" -gt 0 ]; do
 	a=\$1
 	shift
 	n=\$((n - 1))
 	case "\$a" in
-	-pthread|-fPIE|-fpie|-pie) ;;
+	-pthread) ;;
+	-fPIE|-fpie) piecode=\$a ;;
+	-pie) pie=1 ;;
 	-dynamic) dynamic=1 ;;
 	-shared) dynamic=1; set -- "\$@" "\$a" ;;
 	-fPIC|-fpic) pic=1; set -- "\$@" "\$a" ;;
 	*) set -- "\$@" "\$a" ;;
 	esac
 done
+if [ -n "\$dynamic" ]; then
+	[ -n "\$piecode" ] && { pic=1; set -- "\$@" "\$piecode"; }
+	[ -n "\$pie" ] && set -- "\$@" -pie
+fi
 [ -n "\$pic" ] && set -- "\$@" -mcmodel=small
 [ -n "\$dynamic" ] && set -- -specs=$PREFIX/lib/musl-quark-dynamic.specs "\$@"
 exec x86_64-quark-gcc -specs="$PREFIX/lib/musl-quark.specs" "\$@"
