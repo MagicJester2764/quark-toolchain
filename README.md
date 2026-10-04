@@ -49,6 +49,14 @@ make -C ../quarkutils/linux-abi all pic
 
 # 5. Linux's userspace headers, for programs that include <linux/...>.
 ./install-linux-headers.sh
+
+# 6. The compilers that run on Quark itself, laid out as a root in
+#    ~/opt/native for a distribution to stage (see below).
+./build-native.sh /path/to/binutils-gdb /path/to/gcc
+
+# 7. And Rust's, from the official nightly the userland is pinned to,
+#    in ~/opt/native-rust.
+./rust-native.sh /path/to/the/signed/components
 ```
 
 The patches are applied to the source trees by the scripts, and applying
@@ -192,6 +200,63 @@ The port needed three lines, in the usual places:
   while nothing unwound. The first C++ `throw` walked a table that was not
   there and took a page fault instead of finding its handler.
 
+## Compilers that run on Quark
+
+`build-native.sh` builds binutils and gcc a third time, as a Canadian
+cross: built here, by the cross compilers, to run on Quark and make
+programs for Quark. GMP, MPFR and MPC are built for Quark first, from their
+signed tarballs in `~/opt/src` (`teach-config-sub.sh` adds `quark` to each
+one's `config.sub`, in the unpacked copy). What comes out is laid out as
+the root of a Quark system, `~/opt/native` by default, for a distribution
+to stage:
+
+```
+usr/bin/gcc, g++, cc, cpp, as, ld, ar, objcopy …   the compilers and binutils
+usr/libexec/gcc/x86_64-quark/15.2.0/          cc1, cc1plus, collect2
+usr/lib/gcc/x86_64-quark/15.2.0/              libgcc, crtbegin/end, specs
+usr/include/                                  musl's headers, libstdc++'s,
+                                              Linux's, and Quark's own
+usr/lib/                                      musl's archives and start files,
+                                              libstdc++, quark.ld
+usr/lib/quark/                                the layer and manifest.o
+```
+
+On Quark the C library is musl, and `/usr/include` is its: so the compiler
+there needs none of the wrapper's `-nostdinc`, and its own search order —
+libstdc++'s directories, its own, `/usr/include` — is the right one, and
+the one C++'s `#include_next` needs. gcc is built with musl's headers as
+its build sysroot, so the `limits.h` it makes goes on to musl's; and what
+`fixincludes` copies of them is removed, since musl needs no fixing and a
+copy would stand in front of the header it was made from. What is left is
+which files a program is linked from: a `specs` file in gcc's library
+directory names musl's start files and libraries at their Quark paths, as
+the wrapper's specs name them here, accepts `-pthread`, and keeps `-fPIC`
+in the small code model. A change to one set of specs is a change to the
+other. Everything is static, with no debugging information: `cc1` and
+`cc1plus` are forty-odd megabytes each, and the tree 160.
+
+## Rust on Quark
+
+`rust-native.sh` builds nothing. The Rust project publishes rustc and cargo
+built for `x86_64-unknown-linux-musl` — position-independent, linked to
+`libc.so`, asking for `/lib/ld-musl-x86_64.so.1`, and making some of
+Linux's system calls from their own code — and Quark runs such a program
+on its C library, which answers those calls (quarkutils' `CLAUDE.md`,
+*Shared libraries*). The script takes the pinned nightly's components —
+rustc, cargo, and the standard library for `x86_64-unknown-linux-musl` and
+for `x86_64-unknown-none` — checks each against its signature, installs
+them under `/usr` in `~/opt/native-rust`, and strips what runs. Under
+`/usr`, because musl finds `librustc_driver` on its default path there,
+where it would otherwise resolve rustc's `$ORIGIN` through `/proc/self/exe`.
+
+Left out is rustlib's `bin/`: `rust-lld` and the rest are linked at
+0x400000, below where Quark maps anything. GNU ld links in their place,
+which cargo is told by a configuration a distribution gives. And
+`libgcc_s.so.1`, which every one of them asks for, is LLVM's unwinder from
+Rust's own musl runtime (`self-contained/libunwind.a`) as a shared object:
+Quark's libgcc is static, and gcc's unwinder finds a program's frames
+through `dl_iterate_phdr` only on systems its source names.
+
 ## Linux's headers
 
 Quark answers Linux system calls, so a program built for it is a Linux
@@ -220,7 +285,10 @@ x86_64-quark-musl-gcc -dynamic -o prog prog.c -L. -lthing
 `-shared` each read `musl-quark-dynamic.specs` after the static specs, and
 that replaces the link spec whole: ld's own scripts rather than the one a
 static program is linked with, the program at the same base and with an
-interpreter. `-fPIC` is kept, in the small code model.
+interpreter. `-fPIC` is kept, in the small code model. With `-dynamic`,
+`-fPIE -pie` is kept too and makes a program Quark's loaders put where
+they choose, at random (from musl's `Scrt1.o`, with no text address of its
+own); a static program is linked where it runs, and they are dropped.
 
 How a program starts is Linux's: a loader leaves argc, argv, the
 environment and the auxiliary vector on its stack, which musl's own entry

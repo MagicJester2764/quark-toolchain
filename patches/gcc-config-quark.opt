@@ -26,4 +26,13 @@
 rdynamic
 Driver
 
+; And `-pthread', which asks for a threading library and a feature macro:
+; musl has neither, its threads being in libc. Declared, it is an option
+; the driver takes; LIB_SPEC in quark.h names it and does nothing with it.
+; The wrapper on the build machine takes it out before the driver sees it,
+; and a compiler on Quark has no wrapper.
+
+pthread
+Driver
+
 ; This comment is to ensure we retain the blank line above.

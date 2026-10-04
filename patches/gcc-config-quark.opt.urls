@@ -3,3 +3,7 @@
 rdynamic
 UrlSuffix(gcc/Link-Options.html#index-rdynamic)
 
+; skipping UrlSuffix for 'pthread' due to multiple URLs:
+;   duplicate: 'gcc/Link-Options.html#index-pthread-1'
+;   duplicate: 'gcc/Preprocessor-Options.html#index-pthread'
+

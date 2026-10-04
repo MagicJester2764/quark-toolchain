@@ -30,6 +30,10 @@ is built with these compilers is not this repository's business.
    `build-musl.sh`: musl, static and shared, and the wrappers.
 4. `build-libstdcxx.sh`: needs the `-musl-g++` wrapper that step 3 wrote.
 5. `install-linux-headers.sh`.
+6. `build-native.sh`, the compilers that run on Quark: built by everything
+   above, and laid out from what steps 3 to 5 installed.
+7. `rust-native.sh`, Rust's compiler laid out for Quark: the musl wrapper
+   from step 3 links its `libgcc_s.so.1`.
 
 ## Rules
 
@@ -50,6 +54,10 @@ is built with these compilers is not this repository's business.
   `-shared` (musl-quark-dynamic.specs); everything else is linked static,
   as before. gcc was not rebuilt for it: a specs file read after another
   replaces the link spec whole, which is all a dynamic link needs.
+- **The native compilers' specs mirror the wrappers'.** `build-native.sh`
+  writes, for gcc on Quark, what `musl-wrappers.sh` writes for gcc here —
+  which start files and libraries a program is linked from — at the paths
+  they have on Quark. A change to one is a change to the other.
 - **The specs hold absolute paths** into the userland checkout. If it moves,
   `./musl-wrappers.sh` again; nothing needs recompiling. After a gcc upgrade
   run it too: the C++ wrapper names the compiler's version.

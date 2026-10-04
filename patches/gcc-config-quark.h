@@ -36,8 +36,9 @@ along with GCC; see the file COPYING3.  If not see
 #undef  ENDFILE_SPEC
 #define ENDFILE_SPEC ""
 
+/* -pthread is taken and means nothing: threads are in the C library.  */
 #undef  LIB_SPEC
-#define LIB_SPEC "-lc"
+#define LIB_SPEC "%{pthread:} -lc"
 
 /* The link script belongs to the target for the same reason the code model
    does: the base address and the entry section are the system's, not any one
