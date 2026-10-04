@@ -26,7 +26,8 @@ is built with these compilers is not this repository's business.
 1. quarkutils' `libc` into the sysroot — gcc compiles `libgcc` against its
    headers.
 2. `build.sh`: binutils, then gcc with no C++ library.
-3. quarkutils' `linux-abi`, then `build-musl.sh`: musl, and the wrappers.
+3. quarkutils' `linux-abi`, both ways (`make all pic`), then
+   `build-musl.sh`: musl, static and shared, and the wrappers.
 4. `build-libstdcxx.sh`: needs the `-musl-g++` wrapper that step 3 wrote.
 5. `install-linux-headers.sh`.
 
@@ -42,8 +43,13 @@ is built with these compilers is not this repository's business.
 - **A new musl or gcc release means a new patch file**, named for the
   version, and the scripts' default changed. The old one stays until nothing
   is built with it.
-- **Static only.** `--disable-shared` everywhere. A dynamic loader is a
-  project of its own, in quarkutils and the kernel first.
+- **Static unless asked.** gcc, binutils and libstdc++ are
+  `--disable-shared`; musl is built shared as well, because `libc.so` is the
+  C library *and* the dynamic loader of a program linked to it. A program
+  gets that with `-dynamic` to the musl wrapper and a shared object with
+  `-shared` (musl-quark-dynamic.specs); everything else is linked static,
+  as before. gcc was not rebuilt for it: a specs file read after another
+  replaces the link spec whole, which is all a dynamic link needs.
 - **The specs hold absolute paths** into the userland checkout. If it moves,
   `./musl-wrappers.sh` again; nothing needs recompiling. After a gcc upgrade
   run it too: the C++ wrapper names the compiler's version.

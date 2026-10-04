@@ -38,9 +38,10 @@ make -C ../quarkutils/libc install-sysroot
 ./build.sh /path/to/binutils-gdb /path/to/gcc
 export PATH="$HOME/opt/cross/bin:$PATH"
 
-# 3. musl, on the layer that answers its system calls. This also writes the
+# 3. musl, on the layer that answers its system calls — built for programs
+#    and again position-independent, for libc.so. This also writes the
 #    x86_64-quark-musl-gcc and -g++ wrappers.
-make -C ../quarkutils/linux-abi
+make -C ../quarkutils/linux-abi all pic
 ./build-musl.sh /path/to/musl-1.2.5
 
 # 4. The C++ standard library, against musl.
@@ -200,8 +201,30 @@ prefix: constants and structure layouts, which are the same wherever they
 are installed. A header that describes something Quark does not do gives a
 program `ENOSYS` when it runs, which is the answer an old Linux would give.
 
-## Everything is static
+## Static, unless a program asks
 
-There is no dynamic loader. The compilers are configured with
-`--disable-shared`, musl is built without its shared library, and the
-wrappers link every program whole.
+The compilers are configured with `--disable-shared`, and the wrappers link
+a program whole unless it asks otherwise. musl is built shared as well:
+`libc.so` — musl and the translation layer in one, the layer's objects
+built a second time, position-independent (`liblinux-abi-pic.a`) — is the C
+library of a program linked to it, and that program's dynamic loader, by
+the name musl gives it (`/usr/lib/ld-musl-x86_64.so.1`, a link a
+distribution makes to its `libc.so`).
+
+```bash
+x86_64-quark-musl-gcc -fPIC -shared -o libthing.so thing.c
+x86_64-quark-musl-gcc -dynamic -o prog prog.c -L. -lthing
+```
+
+`-dynamic` (taken out before gcc sees it, which does not know it) and
+`-shared` each read `musl-quark-dynamic.specs` after the static specs, and
+that replaces the link spec whole: ld's own scripts rather than the one a
+static program is linked with, the program at the same base and with an
+interpreter. `-fPIC` is kept, in the small code model.
+
+How a program starts is Linux's: a loader leaves argc, argv, the
+environment and the auxiliary vector on its stack, which musl's own entry
+reads — and its dynamic loader, which can call nothing until it has
+relocated itself. A program built before that read its arguments from a
+page the spawner maps, which every loader still maps, so it runs as it
+did.

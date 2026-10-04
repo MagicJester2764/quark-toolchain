@@ -1,25 +1,28 @@
 diff -ru '--exclude=*.o' '--exclude=*.a' '--exclude=*.lo' '--exclude=config.mak' '--exclude=obj' '--exclude=lib' '--exclude=config.log' a/arch/x86_64/crt_arch.h musl-1.2.5/arch/x86_64/crt_arch.h
 --- a/arch/x86_64/crt_arch.h	2024-02-29 21:07:33.000000000 -0500
-+++ b/arch/x86_64/crt_arch.h	2026-09-10 16:36:53.842418147 -0400
-@@ -1,12 +1,16 @@
-+/* Quark starts a task at its entry point with a stack and nothing on it. The
-+ * arguments arrive on a page the spawner mapped, so the argc/argv/environment/
-+ * auxv block that `_start_c` reads has to be built rather than pointed at.
-+ * `__quark_start_args` builds it and returns it.
++++ b/arch/x86_64/crt_arch.h	2026-10-03 23:20:42.611223329 -0400
+@@ -1,12 +1,21 @@
++/* A Quark program is linked half a terabyte up, in the large code model,
++ * and a reference to _DYNAMIC four bytes wide -- nought, for a static
++ * program -- cannot reach that far. Only the dynamic loader's entry wants
++ * its own, and in libc.so that is near. The stack is Linux's either way:
++ * Quark's loaders leave argc, argv, the environment and the auxiliary
++ * vector on it, as Linux's kernel does.
 + */
  __asm__(
  ".text \n"
  ".global " START " \n"
  START ": \n"
  "	xor %rbp,%rbp \n"
--"	mov %rsp,%rdi \n"
+ "	mov %rsp,%rdi \n"
 -".weak _DYNAMIC \n"
 -".hidden _DYNAMIC \n"
--"	lea _DYNAMIC(%rip),%rsi \n"
- "	andq $-16,%rsp \n"
-+"	call __quark_start_args \n"
-+"	mov %rax,%rdi \n"
++".ifc " START ",_dlstart \n"
+ "	lea _DYNAMIC(%rip),%rsi \n"
++".else \n"
 +"	xor %esi,%esi \n"
++".endif \n"
+ "	andq $-16,%rsp \n"
  "	call " START "_c \n"
  );
 diff -ru '--exclude=*.o' '--exclude=*.a' '--exclude=*.lo' '--exclude=config.mak' '--exclude=obj' '--exclude=lib' '--exclude=config.log' a/arch/x86_64/syscall_arch.h musl-1.2.5/arch/x86_64/syscall_arch.h

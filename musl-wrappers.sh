@@ -87,6 +87,32 @@ $PREFIX/lib/libc.a $QUARKUTILS_DIR/linux-abi/liblinux-abi.a
 -L$PREFIX/lib %(old_link_libgcc)
 SPECS
 
+# And musl as a shared library, for a program linked to it and for a shared
+# object: what the wrappers add after the file above when they are given
+# `-dynamic` or `-shared`. It replaces the link spec whole, which the file
+# above leaves alone: the target's says `-static` and names the script a
+# static program is linked with, and these are linked by ld's own, the
+# program at the same base. The program's interpreter is libc.so, by the
+# name musl gives it, where a distribution keeps the C library.
+#
+# A shared object gets no crtbegin: C needs none, and a C++ library would
+# want one built for it.
+cat > "$PREFIX/lib/musl-quark-dynamic.specs" <<SPECS
+# musl as a shared library for x86_64-quark: read after musl-quark.specs.
+
+*link:
+%{shared:-shared;:-dynamic-linker /usr/lib/ld-musl-x86_64.so.1 -Ttext-segment=0x8000000000} -z noexecstack --build-id=none %{rdynamic:-export-dynamic}
+
+*startfile:
+%{!shared:$PREFIX/lib/crt1.o $QUARKUTILS_DIR/linux-abi/src/manifest.o} $PREFIX/lib/crti.o
+
+*endfile:
+$PREFIX/lib/crtn.o
+
+*lib:
+-lc
+SPECS
+
 BINDIR=$(dirname "$(command -v x86_64-quark-gcc)")
 cat > "$BINDIR/x86_64-quark-musl-gcc" <<WRAP
 #!/bin/sh
@@ -97,24 +123,41 @@ cat > "$BINDIR/x86_64-quark-musl-gcc" <<WRAP
 # driver would otherwise refuse an option it has no target handling for, which
 # stops any build system that asks for threads the usual way.
 #
-# -fPIC, -fpic, -fPIE, -fpie and -pie are dropped too. Nothing here is a
-# shared library or a position-independent executable, and with the large
-# code model a program built -fPIC reaches its globals through a GOT whose
-# base it never sets up: their addresses come out as zero. libwayland found
-# that; zlib's configure adds -fPIC whatever it is told.
+# -fPIC and -fpic are kept, in the small code model. The target's default is
+# the large one, and in it a program built -fPIC reached its globals through
+# a GOT whose base it never set up: their addresses came out as zero, which
+# libwayland found and zlib's configure — which adds -fPIC whatever it is
+# told — made certain. In the small model position-independent code finds
+# what it needs from where it is, linked into a static program or a shared
+# one alike; and a shared library has to be built so. -fPIE, -fpie and -pie
+# are dropped: an executable here is not moved.
+#
+# -dynamic links a program to libc.so rather than libc.a, and -shared makes
+# a shared object: each reads musl-quark-dynamic.specs after the static
+# one. gcc does not know -dynamic, so it is taken out. The second specs file
+# goes in front of the arguments, after the first, and unquoted: a build
+# that wants to know which C library a compiler links reads the one quoted
+# -specs on the exec line (GNU/Quark's libc-stamp.sh does).
 #
 # The list is rotated rather than rebuilt with eval: an argument like
 # -DFOO="a b" loses its quoting the moment eval re-parses it.
+dynamic=
+pic=
 n=\$#
 while [ "\$n" -gt 0 ]; do
 	a=\$1
 	shift
 	n=\$((n - 1))
 	case "\$a" in
-	-pthread|-fPIC|-fpic|-fPIE|-fpie|-pie) ;;
+	-pthread|-fPIE|-fpie|-pie) ;;
+	-dynamic) dynamic=1 ;;
+	-shared) dynamic=1; set -- "\$@" "\$a" ;;
+	-fPIC|-fpic) pic=1; set -- "\$@" "\$a" ;;
 	*) set -- "\$@" "\$a" ;;
 	esac
 done
+[ -n "\$pic" ] && set -- "\$@" -mcmodel=small
+[ -n "\$dynamic" ] && set -- -specs=$PREFIX/lib/musl-quark-dynamic.specs "\$@"
 exec x86_64-quark-gcc -specs="$PREFIX/lib/musl-quark.specs" "\$@"
 WRAP
 chmod +x "$BINDIR/x86_64-quark-musl-gcc"
