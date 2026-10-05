@@ -52,10 +52,12 @@ echo "==> patching $MUSL_SRC"
 cd "$MUSL_SRC"
 # The target's own link spec says `-static` and names the script programs
 # are linked with; libc.so is a shared object, linked by ld's own script. So
-# musl's build is given a link spec of its own.
+# musl's build is given a link spec of its own — with the table of its
+# frames an unwinder finds them by (--eh-frame-hdr), which GCC asks ld for
+# in every dynamic link on Linux and the Quark target does not.
 cat > quark-build.specs <<'SPECS'
 *link:
-%{shared:-shared} -z noexecstack --build-id=none
+%{shared:-shared --eh-frame-hdr} -z noexecstack --build-id=none
 SPECS
 ./configure --target=x86_64-quark --prefix="$PREFIX" \
     CC="x86_64-quark-gcc -specs=$(pwd)/quark-build.specs"

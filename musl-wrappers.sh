@@ -101,11 +101,17 @@ SPECS
 # A program linked -pie is one the loaders may put anywhere, and they put it
 # somewhere at random: it starts from musl's position-independent Scrt1.o,
 # and has no text address of its own.
+#
+# Every dynamic link carries the table an unwinder finds a frame's rules
+# by (--eh-frame-hdr), which GCC asks ld for on Linux and the Quark target
+# does not. libgcc_s.so.1 was linked without it, and its unwinder could not
+# find its own first frame: every Rust panic on Quark — every error rustc
+# reports, which it raises as one — ended in an abort.
 cat > "$PREFIX/lib/musl-quark-dynamic.specs" <<SPECS
 # musl as a shared library for x86_64-quark: read after musl-quark.specs.
 
 *link:
-%{shared:-shared;:-dynamic-linker /usr/lib/ld-musl-x86_64.so.1 %{!pie:-Ttext-segment=0x8000000000}} -z noexecstack --build-id=none %{rdynamic:-export-dynamic}
+%{shared:-shared;:-dynamic-linker /usr/lib/ld-musl-x86_64.so.1 %{!pie:-Ttext-segment=0x8000000000}} --eh-frame-hdr -z noexecstack --build-id=none %{rdynamic:-export-dynamic}
 
 *startfile:
 %{!shared:%{pie:$PREFIX/lib/Scrt1.o;:$PREFIX/lib/crt1.o} $QUARKUTILS_DIR/linux-abi/src/manifest.o} $PREFIX/lib/crti.o

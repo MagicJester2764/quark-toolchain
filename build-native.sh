@@ -224,8 +224,10 @@ cat >> "$GCCLIB/specs" <<'SPECS'
 # itself (its build scripts, its macros), and what the wrapper's second
 # specs file makes of -dynamic on the build machine. The target's link
 # spec says -static and names Quark's link script, so it is replaced whole.
+# A dynamic link carries the table of its frames (--eh-frame-hdr), as the
+# wrapper's do.
 *link:
-%{shared:-shared;pie:-dynamic-linker /usr/lib/ld-musl-x86_64.so.1;:-static -no-pie %{!T*:-T /usr/lib/quark.ld}} -z noexecstack --build-id=none %{rdynamic:-export-dynamic}
+%{shared:-shared --eh-frame-hdr;pie:-dynamic-linker /usr/lib/ld-musl-x86_64.so.1 --eh-frame-hdr;:-static -no-pie %{!T*:-T /usr/lib/quark.ld}} -z noexecstack --build-id=none %{rdynamic:-export-dynamic}
 
 *startfile:
 %{shared:/usr/lib/crti.o;pie:/usr/lib/Scrt1.o /usr/lib/quark/manifest.o /usr/lib/crti.o;:/usr/lib/crt1.o /usr/lib/crti.o crtbegin.o%s /usr/lib/quark/manifest.o}
