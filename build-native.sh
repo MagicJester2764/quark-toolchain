@@ -112,15 +112,17 @@ done
 # C++: the headers where a native g++ looks for them, and the archives.
 mkdir -p "$OUT/usr/include/c++"
 rm -rf "$OUT/usr/include/c++/$VER"
-cp -R "$MUSL/include/c++/$VER" "$OUT/usr/include/c++/$VER"
+cp -RL "$MUSL/include/c++/$VER" "$OUT/usr/include/c++/$VER"
 for f in libstdc++.a libsupc++.a libstdc++exp.a; do
     if [ -f "$MUSL/lib/$f" ]; then cp "$MUSL/lib/$f" "$OUT/usr/lib/"; fi
 done
 
-# Linux's userspace headers, for a program that includes <linux/...>.
+# Linux's userspace headers, for a program that includes <linux/...>. What
+# the prefix has, followed where it is a link (-L): a prefix laid out beside
+# another links them, and a link copied as one points at the build machine.
 for d in linux asm asm-generic; do
     rm -rf "$OUT/usr/include/$d"
-    cp -R "$MUSL/include/$d" "$OUT/usr/include/$d"
+    cp -RL "$MUSL/include/$d" "$OUT/usr/include/$d"
 done
 
 # Quark's: the layer musl's calls go through, the object that carries a
