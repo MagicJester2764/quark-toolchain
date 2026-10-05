@@ -22,6 +22,9 @@
 #   cargo-nightly-x86_64-unknown-linux-musl.tar.xz
 #   rust-std-nightly-x86_64-unknown-linux-musl.tar.xz  build scripts, proc macros
 #   rust-std-nightly-x86_64-unknown-none.tar.xz        the kernel, no_std programs
+#   rust-src-nightly.tar.xz                            the library's source, which
+#                                                      -Z build-std compiles: the
+#                                                      kernel's two modules do
 #   rust-key.gpg.ascii                                 the Rust release key
 #
 # Each is checked against its signature before it is unpacked; the key's
@@ -49,7 +52,7 @@ SRC=$(cd "$SRC" && pwd)
 mkdir -p "$OUT"
 OUT=$(cd "$OUT" && pwd)
 COMPONENTS="rustc-nightly-x86_64-unknown-linux-musl cargo-nightly-x86_64-unknown-linux-musl
-rust-std-nightly-x86_64-unknown-linux-musl rust-std-nightly-x86_64-unknown-none"
+rust-std-nightly-x86_64-unknown-linux-musl rust-std-nightly-x86_64-unknown-none rust-src-nightly"
 
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT

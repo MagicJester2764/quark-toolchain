@@ -243,8 +243,10 @@ built for `x86_64-unknown-linux-musl` — position-independent, linked to
 Linux's system calls from their own code — and Quark runs such a program
 on its C library, which answers those calls (quarkutils' `CLAUDE.md`,
 *Shared libraries*). The script takes the pinned nightly's components —
-rustc, cargo, and the standard library for `x86_64-unknown-linux-musl` and
-for `x86_64-unknown-none` — checks each against its signature, installs
+rustc, cargo, the standard library for `x86_64-unknown-linux-musl` and
+for `x86_64-unknown-none`, and the library's source, which `-Z build-std`
+compiles (the kernel's two modules are built so) — checks each against
+its signature, installs
 them under `/usr` in `~/opt/native-rust`, and strips what runs. Under
 `/usr`, because musl finds `librustc_driver` on its default path there,
 where it would otherwise resolve rustc's `$ORIGIN` through `/proc/self/exe`.
