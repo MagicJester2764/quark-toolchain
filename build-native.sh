@@ -211,8 +211,12 @@ x86_64-quark-gcc -dumpspecs | awk '
 cat >> "$GCCLIB/specs" <<'SPECS'
 # musl, as the C library: the files a program is linked from, as
 # x86_64-quark-musl-gcc's specs name them on the build machine, at the paths
-# they have here. crtbegin.o and crtend.o bracket the rest, so that a C++
-# program's table of frames has a beginning and an end.
+# they have here. crtbegin.o and crtend.o bracket the rest of a static
+# program, so that a C++ program's table of frames has a beginning and an
+# end. A program linked -pie and a shared object take neither, as the
+# wrapper's do not: they are built for the large model, as a static program
+# is, and their absolute addresses would be relocations in its text — which
+# the loaders map read-only, so that musl relocating it faults.
 #
 # Static, as everything here is, unless asked: -shared makes a shared
 # object and -pie a program linked to libc.so that the loaders put where
@@ -224,10 +228,10 @@ cat >> "$GCCLIB/specs" <<'SPECS'
 %{shared:-shared;pie:-dynamic-linker /usr/lib/ld-musl-x86_64.so.1;:-static -no-pie %{!T*:-T /usr/lib/quark.ld}} -z noexecstack --build-id=none %{rdynamic:-export-dynamic}
 
 *startfile:
-%{shared:;pie:/usr/lib/Scrt1.o;:/usr/lib/crt1.o} /usr/lib/crti.o crtbegin.o%s %{!shared:/usr/lib/quark/manifest.o}
+%{shared:/usr/lib/crti.o;pie:/usr/lib/Scrt1.o /usr/lib/quark/manifest.o /usr/lib/crti.o;:/usr/lib/crt1.o /usr/lib/crti.o crtbegin.o%s /usr/lib/quark/manifest.o}
 
 *endfile:
-crtend.o%s /usr/lib/crtn.o
+%{shared|pie:;:crtend.o%s} /usr/lib/crtn.o
 
 # -pthread asks for a threading library and a feature macro, and musl has
 # neither: its threads are in libc. The target declares it (quark.opt), and
