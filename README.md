@@ -275,8 +275,8 @@ a program whole unless it asks otherwise. musl is built shared as well:
 `libc.so` — musl and the translation layer in one, the layer's objects
 built a second time, position-independent (`liblinux-abi-pic.a`) — is the C
 library of a program linked to it, and that program's dynamic loader, by
-the name musl gives it (`/usr/lib/ld-musl-x86_64.so.1`, a link a
-distribution makes to its `libc.so`).
+the name musl gives it (`/usr/lib/ld-musl-x86_64.so.1`, a link or a copy
+a distribution makes of its `libc.so`).
 
 ```bash
 x86_64-quark-musl-gcc -fPIC -shared -o libthing.so thing.c
